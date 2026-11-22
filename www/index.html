@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en" class="splash-on">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval'">
+  <meta name="color-scheme" content="light">
+  <meta name="theme-color" content="#fbf7ec">
+  <title>Jamia Noor-ul-Anwar</title>
+  <link rel="icon" href="icon.png">
+  <script src="theme.js"></script>
+  <script src="mobile-bridge.js"></script>
+  <link rel="stylesheet" href="src/styles.css">
+  <style>
+    /* Attendance: reorder handle and arrows */
+    .ord-handle { cursor: grab; user-select: none; padding: 0 4px; font-weight: 700; letter-spacing: -2px; opacity: .65; }
+    .ord-handle:hover { opacity: 1; }
+    .ord-handle:active { cursor: grabbing; }
+    .ord-handle.off { cursor: not-allowed; opacity: .25; }
+    .ord-btn { border: 1px solid rgba(191, 154, 69, .55); border-radius: 6px; width: 22px; height: 22px; line-height: 1; font-size: 12px; background: rgba(255, 255, 255, .35); color: inherit; }
+    .ord-btn:hover:not(:disabled) { background: rgba(191, 154, 69, .25); }
+    .ord-btn:disabled { opacity: .25; cursor: not-allowed; }
+    .att.ordering th.nm, .att.ordering td.nm { min-width: 300px; }
+    #attBody tr.dragging td { opacity: .4; }
+    #attBody tr.drag-over td { box-shadow: inset 0 2px 0 #bf9a45; }
+
+    /* ---------- Startup loader ---------- */
+    html.splash-on, html.splash-on body { overflow: hidden; }
+    #splash { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden;
+      background: radial-gradient(ellipse at 50% 40%, #fffaf0 0%, #f6efdc 55%, #e6dcc0 100%); color: #14473a; transition: opacity 1s ease, transform 1s var(--ease), visibility 1s, filter 1s; }
+    :root[data-theme="dark"] #splash { background: radial-gradient(ellipse at 50% 40%, #18332c 0%, #0f1a17 60%, #0a1210 100%); color: #e8dfc4; }
+    #splash.sp-out { opacity: 0; transform: scale(1.06); filter: blur(6px); visibility: hidden; pointer-events: none; }
+    .sp-glow { position: absolute; width: 620px; height: 620px; border-radius: 50%; background: radial-gradient(circle, rgba(191, 154, 69, .30), transparent 65%); animation: spPulse 3.2s ease-in-out infinite; }
+    .sp-dot { position: absolute; width: 6px; height: 6px; border-radius: 50%; background: #bf9a45; opacity: .5; animation: spFloat var(--t, 8s) ease-in-out infinite alternate; }
+    .sp-corner { position: absolute; width: 70px; height: 70px; border: 0 solid rgba(191, 154, 69, .55); opacity: 0; animation: spFade 1.2s ease .6s forwards; }
+    .sp-c1 { left: 28px; top: 28px; border-width: 2px 0 0 2px; } .sp-c2 { right: 28px; top: 28px; border-width: 2px 2px 0 0; }
+    .sp-c3 { left: 28px; bottom: 28px; border-width: 0 0 2px 2px; } .sp-c4 { right: 28px; bottom: 28px; border-width: 0 2px 2px 0; }
+    .sp-stage { position: relative; width: 190px; height: 190px; display: grid; place-items: center; margin-bottom: 18px; }
+    .sp-ring { position: absolute; inset: 0; animation: spSpin 22s linear infinite; }
+    .sp-draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: spDraw 2.2s cubic-bezier(.5, 0, .2, 1) .3s forwards; }
+    .sp-draw.d2 { animation-delay: .7s; } .sp-draw.d3 { animation-delay: 1.1s; }
+    .sp-logo { width: 104px; height: 104px; object-fit: contain; border-radius: 50%; animation: spPop 1.3s var(--ease) 1s both, spBreath 3.4s ease-in-out 2.4s infinite; }
+    .sp-title { font-family: "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif; font-size: 36px; font-weight: 700; letter-spacing: .03em; animation: spRise 1.1s var(--ease) 1.5s both; }
+    .sp-urdu { margin-top: 2px; font-size: 24px; color: #9a7a2e; animation: spRise 1.1s var(--ease) 1.8s both; }
+    .sp-line { height: 2px; width: 0; margin: 14px 0 12px; border-radius: 2px; background: linear-gradient(90deg, transparent, #bf9a45, transparent); animation: spLine 1.4s var(--ease) 2s forwards; }
+    .sp-sub { font-size: 12px; letter-spacing: .32em; text-transform: uppercase; opacity: 0; animation: spRise 1.1s var(--ease) 2.2s both; }
+    .sp-progress { width: 300px; margin-top: 34px; opacity: 0; animation: spRise 1s var(--ease) 2.4s both; }
+    .sp-bar { height: 4px; border-radius: 4px; background: rgba(191, 154, 69, .22); overflow: hidden; }
+    .sp-bar span { display: block; height: 100%; width: 100%; transform: scaleX(0); transform-origin: left; border-radius: 4px; background: linear-gradient(90deg, #bf9a45, #2e8b6f); box-shadow: 0 0 12px rgba(191, 154, 69, .6); }
+    .sp-meta { display: flex; justify-content: space-between; margin-top: 9px; font-size: 11px; letter-spacing: .08em; opacity: .7; }
+    @keyframes spRise { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
+    @keyframes spPop { from { opacity: 0; transform: scale(.5) rotate(-12deg); } to { opacity: 1; transform: none; } }
+    @keyframes spBreath { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+    @keyframes spSpin { to { transform: rotate(360deg); } }
+    @keyframes spDraw { to { stroke-dashoffset: 0; } }
+    @keyframes spLine { to { width: 200px; } }
+    @keyframes spFade { to { opacity: 1; } }
+    @keyframes spPulse { 0%, 100% { transform: scale(.92); opacity: .7; } 50% { transform: scale(1.08); opacity: 1; } }
+    @keyframes spFloat { from { transform: translate(0, 0); } to { transform: translate(26px, -34px); } }
+
+    /* ---------- Login screen: ambient background motion + wrong/right password feedback ---------- */
+    .login-wrap { position: relative; overflow: hidden; }
+    .login-orb { position: absolute; z-index: -1; border-radius: 50%; filter: blur(70px); pointer-events: none; }
+    .login-o1 { width: 360px; height: 360px; left: -100px; top: -60px; background: rgba(46, 139, 111, .22); animation: loginDrift 14s ease-in-out infinite alternate; }
+    .login-o2 { width: 320px; height: 320px; right: -90px; bottom: -70px; background: rgba(191, 154, 69, .26); animation: loginDrift 16s ease-in-out -5s infinite alternate-reverse; }
+    .login-o3 { width: 220px; height: 220px; left: 60%; top: 10%; background: rgba(191, 154, 69, .14); animation: loginDrift 18s ease-in-out -9s infinite alternate; }
+    @keyframes loginDrift { from { transform: translate(0, 0) scale(1); } to { transform: translate(46px, 34px) scale(1.15); } }
+    .login-card { position: relative; }
+    .login-card.shake-err { animation: loginShake .5s cubic-bezier(.36, .07, .19, .97) both; box-shadow: 0 0 0 2px #dc2626, 0 10px 30px -14px rgba(220, 38, 38, .4) !important; }
+    .login-card.shake-err .field { border-color: #dc2626 !important; }
+    @keyframes loginShake {
+      10%, 90% { transform: translateX(-1px); } 20%, 80% { transform: translateX(2px); }
+      30%, 50%, 70% { transform: translateX(-6px); } 40%, 60% { transform: translateX(6px); }
+    }
+    .login-card.login-ok { animation: loginOkPulse .6s var(--ease) both; box-shadow: 0 0 0 2px #2e8b6f, 0 14px 34px -14px rgba(46, 139, 111, .45) !important; }
+    .login-card.login-ok .btn-primary { background: linear-gradient(135deg, #2e8b6f, #1f6b54) !important; }
+    @keyframes loginOkPulse {
+      0% { box-shadow: 0 0 0 0 rgba(46, 139, 111, .55); }
+      60% { box-shadow: 0 0 0 16px rgba(46, 139, 111, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(46, 139, 111, 0); }
+    }
+
+    /* ---------- Login: character hidden behind the card, walks out, reacts, walks back ---------- */
+    .login-stack { position: relative; }
+    /* solid card so the character behind it can never show through the frosted glass */
+    .login-card.card { position: relative; z-index: 2; background: #fffdf7 !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; transition: opacity .5s ease, transform .55s var(--ease), box-shadow .3s ease; }
+    :root[data-theme="dark"] .login-card.card { background: #15221e !important; }
+    .login-card.login-busy { cursor: progress; }
+    .login-card.login-busy .btn-primary { opacity: .85; }
+    .login-card.login-ok .btn-primary:disabled { opacity: 1; }
+    .login-card.login-leave { opacity: 0; transform: translateY(-14px) scale(.97); }
+
+    /* The character: z-index 1 (card is 2). Hidden = centred behind the card. Put your own transparent PNGs in assets/. */
+    .pal { position: absolute; left: 0; bottom: 8px; width: 150px; height: 346px; z-index: 1; visibility: hidden; pointer-events: none; transform: translateX(95px);
+      --cut-b: 46%; --cut-h: 48.5%; --px: 55%; --cuff: #ffffff; }
+    .pal[data-kind="girl"] { --cut-b: 43%; --cut-h: 45.5%; --px: 50%; --cuff: #d9bd92; }
+    .pal.on { visibility: visible; }
+    .pal-shadow { position: absolute; left: 12%; bottom: -5px; width: 76%; height: 14px; border-radius: 50%; background: radial-gradient(ellipse at center, rgba(20, 71, 58, .38), transparent 70%); }
+    .pal-walk { position: absolute; inset: 0; transform-origin: 50% 100%; }
+    .pal-turn { position: absolute; inset: 0; transform-origin: 50% 100%; transform: scaleX(var(--face, 1)); }
+    .pal-fig { position: absolute; inset: 0; }
+    .pal-img { position: absolute; inset: 0; width: 100%; height: 100%; user-select: none; -webkit-user-drag: none; }
+    /* two layers from the same picture: head (turns and nods about the neck) and body */
+    .pal-lower { clip-path: inset(var(--cut-b) 0 0 0); }
+    .pal-head { clip-path: inset(0 0 calc(100% - var(--cut-h)) 0); transform-origin: var(--px) var(--cut-b); }
+
+    /* a natural stride: body rises mid-step, drops and squashes slightly on each footfall, leans left and right */
+    .pal.walking .pal-walk { animation: walkBounce .68s ease-in-out infinite; }
+    .pal.walking .pal-shadow { animation: shadowStep .68s ease-in-out infinite; }
+    .pal.walking .pal-head { animation: headSway .68s ease-in-out infinite; }
+    @keyframes walkBounce {
+      0%   { transform: translateY(0) rotate(0) scale(1.015, .985); }
+      25%  { transform: translateY(-8px) rotate(-1.8deg) scale(.99, 1.01); }
+      50%  { transform: translateY(0) rotate(0) scale(1.015, .985); }
+      75%  { transform: translateY(-8px) rotate(1.8deg) scale(.99, 1.01); }
+      100% { transform: translateY(0) rotate(0) scale(1.015, .985); }
+    }
+    @keyframes shadowStep { 0%, 50%, 100% { transform: scale(1); opacity: 1; } 25%, 75% { transform: scale(.86); opacity: .7; } }
+    @keyframes headSway { 0%, 50%, 100% { transform: perspective(520px) rotateZ(0) rotateX(-2deg); } 25% { transform: perspective(520px) rotateZ(-1.5deg) rotateX(0); } 75% { transform: perspective(520px) rotateZ(1.5deg) rotateX(0); } }
+    /* standing still: slow breathing */
+    .pal.idle .pal-walk { animation: palBreath 3.6s ease-in-out infinite; }
+    @keyframes palBreath { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.006, 1.012); } }
+    /* peeking: looks out and back before stepping fully out */
+    .pal.curious .pal-head { animation: headLook 1.3s ease-in-out infinite; }
+    @keyframes headLook { 0%, 100% { transform: perspective(520px) rotateY(0) rotateZ(0); } 30% { transform: perspective(520px) rotateY(-22deg) rotateZ(-3deg); } 70% { transform: perspective(520px) rotateY(18deg) rotateZ(2deg); } }
+
+    /* correct password: nods "yes", thumbs-up, green bubble */
+    .pal.state-ok .pal-head { animation: headNod .95s ease-in-out .5s 3; }
+    @keyframes headNod {
+      0%, 100% { transform: perspective(520px) rotateX(0) translateY(0); }
+      32% { transform: perspective(520px) rotateX(-17deg) translateY(2px); }
+      62% { transform: perspective(520px) rotateX(3deg) translateY(-1px); }
+    }
+    .pal-thumb { position: absolute; top: 50%; width: 58px; height: 58px; opacity: 0; transform: scale(.2) rotate(-24deg); transform-origin: 50% 80%; }
+    .pal.side-right .pal-thumb { right: -34px; } .pal.side-left .pal-thumb { left: -34px; }
+    .pal.side-left .pal-thumb svg { transform: scaleX(-1); }
+    .pal.state-ok .pal-thumb { animation: thumbShow 2.6s cubic-bezier(.34, 1.56, .64, 1) .35s forwards; }
+    @keyframes thumbShow {
+      0% { opacity: 0; transform: translateY(14px) scale(.2) rotate(-24deg); }
+      16% { opacity: 1; transform: translateY(-4px) scale(1.12) rotate(6deg); }
+      26% { transform: translateY(0) scale(1) rotate(0); }
+      48% { transform: translateY(-5px) scale(1.06) rotate(-5deg); }
+      70% { transform: translateY(0) scale(1) rotate(3deg); }
+      100% { opacity: 1; transform: translateY(0) scale(1) rotate(0); }
+    }
+    .pal-spark { position: absolute; font-size: 15px; color: #bf9a45; opacity: 0; }
+    .pal-spark.s1 { top: 4%; right: 2px; } .pal-spark.s2 { top: 22%; left: -6px; } .pal-spark.s3 { top: 12%; right: -22px; }
+    .pal.state-ok .pal-spark { animation: sparkle 1.3s ease-in-out .9s 3; }
+    .pal.state-ok .pal-spark.s2 { animation-delay: 1.2s; } .pal.state-ok .pal-spark.s3 { animation-delay: 1.5s; }
+    @keyframes sparkle { 0%, 100% { opacity: 0; transform: scale(.3) rotate(0); } 50% { opacity: 1; transform: scale(1.1) rotate(35deg); } }
+
+    /* wrong password: slightly sad face, slumped, shakes head "no", sweat drop, red bubble */
+    .pal.state-bad .pal-fig { transform: translateY(3px); }
+    .pal.state-bad .pal-head { animation: headNo .85s ease-in-out .55s 3; filter: saturate(.85); }
+    @keyframes headNo {
+      0%, 100% { transform: perspective(520px) rotateX(-9deg) rotateY(0) rotateZ(0); }
+      22% { transform: perspective(520px) rotateX(-9deg) rotateY(-27deg) rotateZ(-2deg); }
+      56% { transform: perspective(520px) rotateX(-9deg) rotateY(27deg) rotateZ(2deg); }
+      82% { transform: perspective(520px) rotateX(-9deg) rotateY(-12deg) rotateZ(-1deg); }
+    }
+    .pal-sweat { position: absolute; top: 13%; width: 14px; height: 20px; opacity: 0; }
+    .pal.side-right .pal-sweat { right: 6px; } .pal.side-left .pal-sweat { left: 6px; }
+    .pal.state-bad .pal-sweat { animation: sweatDrop 1.3s ease-in .8s infinite; }
+    @keyframes sweatDrop { 0% { opacity: 0; transform: translateY(-4px) scale(.6); } 25% { opacity: 1; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(22px) scale(1); } }
+
+    /* speech bubble above the head (beyond the card edge, so the card never covers it) */
+    .pal-bubble { position: absolute; left: 50%; bottom: 100%; margin-bottom: 12px; padding: 9px 18px; border-radius: 16px; white-space: nowrap; direction: rtl; font-size: 17px; font-weight: 700; line-height: 1.5;
+      background: #fff; color: #1f4a3f; box-shadow: 0 10px 24px -10px rgba(20, 71, 58, .45); transform: translateX(-50%) scale(0); transform-origin: 50% 110%; transition: transform .3s cubic-bezier(.5, 0, .8, .3); }
+    .pal-bubble::after { content: ''; position: absolute; left: 50%; top: 100%; width: 13px; height: 13px; margin: -7px 0 0 -7px; background: inherit; transform: rotate(45deg); border-radius: 0 0 4px 0; }
+    .pal.side-right .pal-bubble { margin-left: 30px; } .pal.side-left .pal-bubble { margin-left: -30px; }
+    .pal.side-right .pal-bubble::after { left: calc(50% - 30px); } .pal.side-left .pal-bubble::after { left: calc(50% + 30px); }
+    .pal.bubble-on .pal-bubble { transform: translateX(-50%) scale(1); transition: transform .55s cubic-bezier(.34, 1.56, .64, 1); }
+    .pal.state-ok .pal-bubble { background: #e4f5ec; color: #1b5a47; box-shadow: 0 10px 24px -10px rgba(46, 139, 111, .55); }
+    .pal.state-bad .pal-bubble { background: #fdeceb; color: #a23c32; box-shadow: 0 10px 24px -10px rgba(220, 38, 38, .45); }
+    :root[data-theme="dark"] .pal-bubble { background: #1d2f29; color: #e8dfc4; }
+    :root[data-theme="dark"] .pal.state-ok .pal-bubble { background: #17382d; color: #b9ecd4; }
+    :root[data-theme="dark"] .pal.state-bad .pal-bubble { background: #3a1f1d; color: #ffc7c0; }
+    .pal.fade-away { opacity: 0; transition: opacity .5s ease; }
+    @media (prefers-reduced-motion: reduce) { .pal { display: none; } }
+    @media (max-width: 900px) { .pal { display: none; } }   /* not enough room beside the card on a narrow window */
+
+    /* ---------- Boys / Girls section screen ---------- */
+    .pt-root { overflow: hidden; }
+    .pt-top, .pt-card { transition: opacity .45s ease, transform .5s var(--ease), filter .45s ease, box-shadow .35s ease; }
+    .pt-logo { animation: ptDrop 1s var(--ease) .1s both; }
+    .pt-logo > * { filter: drop-shadow(0 6px 14px rgba(191, 154, 69, .45)); animation: spBreath 4s ease-in-out 1.2s infinite; }
+    .pt-title { animation: spRise .9s var(--ease) .3s both; }
+    .pt-rule { height: 2px; width: 0; margin-top: 10px; border-radius: 2px; background: linear-gradient(90deg, transparent, #bf9a45, transparent); animation: ptRule 1.1s var(--ease) .7s forwards; }
+    .pt-sub { animation: spRise .9s var(--ease) .55s both; }
+    .pt-card { box-shadow: 0 10px 30px -12px rgba(20, 71, 58, .25); }
+    .pt-card.pt-l { animation: ptFromL .9s var(--ease) .65s backwards; }
+    .pt-card.pt-r { animation: ptFromR .9s var(--ease) .8s backwards; }
+    .pt-card:hover { transform: translateY(-8px) scale(1.02); box-shadow: 0 24px 46px -14px rgba(20, 71, 58, .38), 0 0 0 1px rgba(191, 154, 69, .55); }
+    .pt-card:active { transform: scale(.98); }
+    .pt-shine { position: absolute; top: 0; left: -80%; width: 55%; height: 100%; background: linear-gradient(100deg, transparent, rgba(255, 255, 255, .55), transparent); transform: skewX(-18deg); pointer-events: none; }
+    .pt-card:hover .pt-shine { animation: ptShine .9s ease; }
+    .pt-icon { animation: ptBob 3.6s ease-in-out infinite; transition: transform .4s var(--ease); }
+    .pt-card:hover .pt-icon { transform: rotate(-8deg) scale(1.12); animation-play-state: paused; }
+    .pt-go { opacity: 0; transform: translateX(-8px); transition: opacity .3s ease, transform .35s var(--ease); }
+    .pt-card:hover .pt-go, .pt-card:focus-visible .pt-go { opacity: 1; transform: none; }
+    .pt-arrow { display: inline-block; transition: transform .3s var(--ease); }
+    .pt-card:hover .pt-arrow { transform: translateX(5px); }
+    .pt-orb { position: absolute; z-index: -1; border-radius: 50%; filter: blur(70px); pointer-events: none; }
+    .pt-o1 { width: 380px; height: 380px; left: -90px; top: -70px; background: rgba(46, 139, 111, .22); animation: ptDrift 13s ease-in-out infinite alternate; }
+    .pt-o2 { width: 340px; height: 340px; right: -80px; bottom: -60px; background: rgba(191, 154, 69, .26); animation: ptDrift 15s ease-in-out -4s infinite alternate-reverse; }
+    .pt-o3 { width: 240px; height: 240px; left: 55%; top: 8%; background: rgba(191, 154, 69, .14); animation: ptDrift 17s ease-in-out -8s infinite alternate; }
+    .portal-leaving .pt-top, .portal-leaving .pt-card:not(.picked) { opacity: 0; transform: translateY(-14px) scale(.94); filter: blur(3px); pointer-events: none; }
+    .portal-leaving .pt-card.picked { transform: scale(1.07); box-shadow: 0 30px 60px -16px rgba(20, 71, 58, .5), 0 0 0 2px #bf9a45; transition-duration: .5s; }
+    .portal-leaving { animation: ptLeave .5s ease .15s forwards; }
+    @keyframes ptDrop { from { opacity: 0; transform: translateY(-34px) scale(.7); } to { opacity: 1; transform: none; } }
+    @keyframes ptRule { to { width: 160px; } }
+    @keyframes ptFromL { from { opacity: 0; transform: translateX(-60px) scale(.94); } to { opacity: 1; transform: none; } }
+    @keyframes ptFromR { from { opacity: 0; transform: translateX(60px) scale(.94); } to { opacity: 1; transform: none; } }
+    @keyframes ptShine { to { left: 130%; } }
+    @keyframes ptBob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+    @keyframes ptDrift { from { transform: translate(0, 0) scale(1); } to { transform: translate(50px, 36px) scale(1.15); } }
+    @keyframes ptLeave { to { opacity: 0; } }
+
+    /* ---------- Main screen entrance after choosing a section ---------- */
+    body.shell-enter #side { animation: shellSide .8s var(--ease) both; }
+    body.shell-enter .flex.h-screen > :not(aside) { animation: shellMain .9s var(--ease) .12s both; }
+    @keyframes shellSide { from { opacity: 0; transform: translateX(-40px); } to { opacity: 1; transform: none; } }
+    @keyframes shellMain { from { opacity: 0; transform: translateY(24px) scale(.99); } to { opacity: 1; transform: none; } }
+
+    /* ---------- Scroll reveal: fade in and slide up when it enters the viewport ---------- */
+    .rv:not(.rv-in) { opacity: 0; transform: translateY(30px); }
+    .rv.rv-in { animation: rvUp .7s var(--ease) var(--d, 0s) backwards; }
+    .rv-row:not(.rv-in) { opacity: 0; transform: translateY(16px); }
+    .rv-row.rv-in { animation: rvRow .45s var(--ease) var(--d, 0s) backwards; }
+    @keyframes rvUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: none; } }
+    @keyframes rvRow { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+    .tt-dim { opacity: .28; filter: grayscale(.6); transition: opacity .25s ease; }
+    .tt-mine { box-shadow: inset 0 0 0 2px #bf9a45; background: rgba(240, 223, 169, .35); }
+    @media print { .tt-dim { opacity: 1; filter: none; } .tt-mine { box-shadow: none; background: transparent; } }
+    .exporting .tt-dim { opacity: 1; filter: none; } .exporting .tt-mine { box-shadow: none; background: transparent; }
+    .rv-go { animation: rvUp .7s var(--ease) var(--d, 0s) backwards; }
+    .pg-head.rv-go { animation-name: rvHead; }
+    @keyframes rvHead { from { opacity: 0; transform: translateY(-14px); } to { opacity: 1; transform: none; } }
+    @media print { .rv, .rv-row, .rv-go { opacity: 1 !important; transform: none !important; animation: none !important; } #splash { display: none !important; } }
+    @media (prefers-reduced-motion: reduce) { #splash .sp-sub, #splash .sp-progress, #splash .sp-corner { opacity: 1 !important; } #splash .sp-line { width: 200px !important; } #splash .sp-draw { stroke-dashoffset: 0 !important; } }
+
+    /* ---------- Smooth transitions and animations ---------- */
+    :root { --ease: cubic-bezier(.2, .8, .2, 1); }
+    #modalRoot > div { animation: ttFade .22s ease both; }
+    #modalRoot > div > .card { animation: popIn .3s var(--ease) both; }
+    #receiptRoot > div { animation: ttFade .22s ease both; }
+    #toast > div { animation: toastIn .32s var(--ease) both; }
+    #toast > div.toast-out { animation: toastOut .26s ease both; }
+    .card { transition: box-shadow .3s ease, transform .3s var(--ease), background-color .3s ease; }
+    .card:hover { transform: translateY(-1px); }
+    .sheet:hover, .sheet .card:hover, #modalRoot .card:hover { transform: none; }
+    .btn-ghost, .btn-gold, .btn-primary, .seg, .ord-btn, .nav-item { transition: background-color .2s ease, color .2s ease, border-color .2s ease, box-shadow .2s ease, transform .15s var(--ease), opacity .2s ease; }
+    .btn-ghost:hover:not(:disabled), .btn-gold:hover:not(:disabled), .btn-primary:hover:not(:disabled) { transform: translateY(-1px); }
+    .btn-ghost:active:not(:disabled), .btn-gold:active:not(:disabled), .btn-primary:active:not(:disabled), .ord-btn:active:not(:disabled) { transform: scale(.96); }
+    .nav-item:hover { transform: translateX(2px); }
+    .tbl td, .tbl th, .att td, .att th { transition: background-color .18s ease, box-shadow .18s ease; }
+    .att-cell { transition: background-color .18s ease, transform .12s var(--ease), color .18s ease; }
+    .att-cell:active { transform: scale(.85); }
+    .tt-cell { transition: background-color .18s ease, box-shadow .18s ease; }
+    .tt-edit:hover { box-shadow: inset 0 0 0 2px #bf9a45; }
+    #attBody tr.drag-over td { transition: box-shadow .12s ease; }
+    #attBody tr.dragging td { transition: opacity .15s ease; }
+    .h-full.rounded-full[style*="width"] { transform-origin: left; animation: growX .8s var(--ease) both; }
+    svg[role=img] rect[rx="6"], svg[role=img] rect[rx="3"] { transform-box: fill-box; transform-origin: bottom; animation: growY .7s var(--ease) both; }
+    select, input, textarea { transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease; }
+    @keyframes ttFade { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes popIn { from { opacity: 0; transform: translateY(14px) scale(.97); } to { opacity: 1; transform: none; } }
+    @keyframes toastIn { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
+    @keyframes toastOut { to { opacity: 0; transform: translateX(24px); } }
+    @keyframes growX { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+    @keyframes growY { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+    @media print { * { animation: none !important; transition: none !important; transform: none !important; } }
+
+    /* After-exit days in the attendance grid */
+    .att td.fri[title^="After the exit"] { background-image: repeating-linear-gradient(45deg, rgba(220, 38, 38, .18) 0 3px, transparent 3px 6px); }
+
+    /* Timetable sheet: always light, like result cards */
+    .sheet.tt-sheet { width: 100%; padding: 18px; color: #183f34; }
+    .tt-head { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
+    .tt-scroll { overflow-x: auto; }
+    .tt { border-collapse: collapse; width: 100%; table-layout: auto; font-size: 13px; }
+    .tt th, .tt td { border: 1px solid #b9d3c6; padding: 6px 8px; text-align: center; vertical-align: middle; }
+    .tt-th { background: #2e6c5c; color: #fff; min-width: 110px; }
+    .tt-break-h { background: #b08d44; }
+    .tt-time { font-size: 10.5px; opacity: .8; font-weight: 500; }
+    .tt-class { background: #eaf4ee; font-weight: 700; text-align: left !important; white-space: nowrap; }
+    .tt-class .tt-time { color: #3e5d62; }
+    .tt-cell { background: #fff; height: 52px; }
+    .tt-edit { cursor: pointer; }
+    .tt-edit:hover { background: #fbf3dc; }
+    .tt-subj { font-weight: 700; }
+    .tt-teacher { font-size: 11px; color: #3e5d62; }
+    .tt-clash { background: #fde8e8 !important; outline: 2px solid #dc2626; outline-offset: -2px; }
+    .tt-break { background: #f3ead2; font-weight: 700; color: #6f5628; }
+    .tt-vert { writing-mode: vertical-rl; transform: rotate(180deg); margin: 0 auto; letter-spacing: .1em; }
+    .tt-sheet .ord-btn { color: #fff; border-color: rgba(255, 255, 255, .6); background: rgba(255, 255, 255, .15); }
+    .tt-sheet.exporting { width: max-content; min-width: 900px; }
+    .tt-sheet.exporting .no-print { display: none !important; }
+    .tt-sheet.exporting .tt-scroll { overflow: visible; }
+    @media print {
+      @page { size: A4 landscape; }
+      .print-target .tt-scroll { overflow: visible !important; }
+      .print-target .tt { font-size: 10.5px; table-layout: fixed; }
+      .print-target .tt-th { min-width: 0; }
+      .print-target .tt-clash { background: #fff !important; outline: none; }
+    }
+  </style>
+</head>
+<body class="font-sans text-emerald-950 antialiased">
+  <div id="splash" aria-hidden="true">
+    <div class="sp-glow"></div>
+    <i class="sp-dot" style="left:14%;top:22%;--t:7s"></i><i class="sp-dot" style="left:82%;top:30%;--t:9s"></i><i class="sp-dot" style="left:24%;top:78%;--t:8s"></i><i class="sp-dot" style="left:74%;top:72%;--t:10s"></i><i class="sp-dot" style="left:50%;top:12%;--t:11s"></i>
+    <div class="sp-corner sp-c1"></div><div class="sp-corner sp-c2"></div><div class="sp-corner sp-c3"></div><div class="sp-corner sp-c4"></div>
+    <div class="sp-stage">
+      <svg class="sp-ring" viewBox="0 0 100 100" width="190" height="190"><g fill="none" stroke="#bf9a45" stroke-linecap="round">
+        <circle class="sp-draw" cx="50" cy="50" r="47" stroke-width="1.2" pathLength="1"/>
+        <rect class="sp-draw d2" x="22" y="22" width="56" height="56" stroke-width="1" pathLength="1"/>
+        <rect class="sp-draw d3" x="22" y="22" width="56" height="56" stroke-width="1" pathLength="1" transform="rotate(45 50 50)"/></g></svg>
+      <img class="sp-logo" src="logo.png" alt="">
+    </div>
+    <div class="sp-title">Jamia Noor-ul-Anwar</div>
+    <div class="sp-urdu">جامعہ نور الانوار</div>
+    <div class="sp-line"></div>
+    <div class="sp-sub">School Management System</div>
+    <div class="sp-progress"><div class="sp-bar"><span id="spFill"></span></div><div class="sp-meta"><span id="spMsg">Starting up</span><b id="spPct">0%</b></div></div>
+  </div>
+  <div id="app"></div>
+  <div id="modalRoot"></div>
+  <div id="receiptRoot"></div>
+  <div id="toast" class="fixed bottom-6 right-6 z-50 flex flex-col gap-2"></div>
+
+  <script src="node_modules/html2canvas/dist/html2canvas.min.js"></script>
+  <script src="locations.js"></script>
+  <script src="renderer.js"></script>
+  <script src="animations.js"></script>
+  <script src="mobile-ui.js"></script>
+</body>
+</html>

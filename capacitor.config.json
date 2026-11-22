@@ -1,0 +1,16 @@
+{
+  "appId": "org.jamia.noorulanwar",
+  "appName": "Jamia Noor-ul-Anwar",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "backgroundColor": "#fbf7ec"
+  },
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  }
+}

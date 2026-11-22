@@ -1,0 +1,16 @@
+{
+  "name": "jamia-storage",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Capacitor plugin: native folder picker, real file access (Storage Access Framework) and runtime permissions for Jamia Noor-ul-Anwar",
+  "main": "index.js",
+  "files": ["android/src/main/", "android/build.gradle", "index.js"],
+  "capacitor": {
+    "android": {
+      "src": "android"
+    }
+  },
+  "peerDependencies": {
+    "@capacitor/core": ">=7.0.0"
+  }
+}

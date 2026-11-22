@@ -1,0 +1,50 @@
+name: Android APK
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund   # no lockfile yet; switch to `npm ci` after committing package-lock.json
+
+      - name: Build web bundle (Tailwind CSS + mobile bridge)
+        run: npm run build:www
+
+      - name: Create Android project (first run) and sync
+        run: |
+          [ -d android ] || npx cap add android
+          npx capacitor-assets generate --android --assetPath resources
+          npx cap sync android
+
+      - name: No storage permissions, no cloud backup
+        run: python3 scripts/harden-android.py
+
+      - name: Build debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jamia-noor-ul-anwar-debug-apk
+          path: android/app/build/outputs/apk/debug/*.apk
+
+  # Optional signed release APK: add repo secrets KEYSTORE_B64, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD, then uncomment.
+  # (Debug APKs install fine for testing; Play Store needs a signed release build.)
